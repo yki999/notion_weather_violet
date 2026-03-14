@@ -20,19 +20,23 @@
         }
         .widget-container {
             width: 100%;
-            max-width: 600px; /* 参考画像のような横長のバランスに調整 */
+            max-width: 600px;
             display: flex;
             flex-direction: column;
-            gap: 30px;
+            gap: 20px;
+            position: relative; /* 出典を枠内に収めるための基準 */
         }
+        
         /* --- 上段（現在の天気） --- */
         .top-row {
             display: grid;
             grid-template-columns: 1fr 1fr 1fr;
             align-items: center;
+            margin-bottom: 10px;
         }
         .title-block {
             text-align: left;
+            line-height: 1.4;
         }
         .title-shimacho {
             font-size: 16px;
@@ -49,10 +53,10 @@
         .current-icon {
             text-align: center;
             font-size: 32px;
-            filter: drop-shadow(0 0 2px rgba(157, 123, 255, 0.2));
         }
         .current-temp-block {
             text-align: right;
+            line-height: 1.2;
         }
         .current-temp {
             font-size: 26px;
@@ -61,7 +65,6 @@
         .current-desc {
             font-size: 14px;
             opacity: 0.9;
-            text-transform: lowercase;
         }
 
         /* --- 下段（5日間予報） --- */
@@ -94,15 +97,17 @@
             margin-top: 3px;
         }
 
-        /* --- 出典明記（枠内に収める） --- */
-        .source {
+        /* --- 出典明記（右下に配置） --- */
+        .source-container {
             text-align: right;
+            margin-top: 15px;
+        }
+        .source {
             font-size: 10px;
-            opacity: 0.5;
+            opacity: 0.6;
             text-decoration: none;
             color: var(--main-purple);
             font-family: sans-serif;
-            margin-top: 10px;
         }
         .source:hover {
             opacity: 1;
@@ -128,11 +133,12 @@
             Loading...
         </div>
 
-        <a href="https://open-meteo.com/" target="_blank" class="source">※出典: JMA / Open-Meteo</a>
+        <div class="source-container">
+            <a href="https://open-meteo.com/" target="_blank" class="source">※出典: JMA / Open-Meteo</a>
+        </div>
     </div>
 
     <script>
-        // 天気コードを絵文字と英語の説明に変換する関数
         function parseWeatherCode(code) {
             if (code === 0 || code === 1) return { icon: "☀️", desc: "Clear sky" };
             if (code === 2) return { icon: "⛅", desc: "Partly cloudy" };
@@ -145,24 +151,22 @@
 
         async function getWeather() {
             try {
-                // 現在の天気と、日ごとの予報（5日分）を取得
                 const url = 'https://api.open-meteo.com/v1/forecast?latitude=35.9461&longitude=139.6644&current=temperature_2m,weather_code&daily=weather_code,temperature_2m_max,temperature_2m_min&timezone=Asia%2FTokyo&models=jma_seamless';
                 const res = await fetch(url);
                 const data = await res.json();
                 
-                // --- 現在の天気を反映 ---
+                // 現在の天気
                 const current = data.current;
                 const currentWeather = parseWeatherCode(current.weather_code);
                 document.getElementById('current-icon').textContent = currentWeather.icon;
                 document.getElementById('current-temp').textContent = Math.round(current.temperature_2m) + '°C';
                 document.getElementById('current-desc').textContent = currentWeather.desc;
 
-                // --- 5日間の予報を反映 ---
+                // 5日間の予報
                 const daily = data.daily;
                 let html = '';
                 const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
                 
-                // 5日分ループ
                 for (let i = 0; i < 5; i++) {
                     const date = new Date(daily.time[i]);
                     const dayLabel = dayNames[date.getDay()];

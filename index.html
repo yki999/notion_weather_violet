@@ -2,18 +2,18 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>Shimacho Weather (JMA)</title>
+    <title>Shimacho Weather</title>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&display=swap" rel="stylesheet">
     <style>
         :root {
-            /* カレンダーに馴染むパープル系のカラーコード */
-            --main-purple: #9D7BFF; 
-            --light-purple: #c2adff;
+            var(--main-purple): #9D7BFF; 
+            var(--light-purple): #c2adff;
         }
         body {
             background: transparent;
-            color: var(--main-purple);
-            /* カレンダーと同じセリフ体（明朝系）を指定 */
-            font-family: "Times New Roman", "YuMincho", "Hiragino Mincho ProN", "MS PMincho", serif;
+            color: #9D7BFF;
+            /* 読み込んだGoogle Fontsを最優先に適用 */
+            font-family: 'Playfair Display', "Times New Roman", "YuMincho", "Hiragino Mincho ProN", serif;
             text-align: center;
             margin: 0;
             padding: 20px;
@@ -45,7 +45,6 @@
         .icon {
             font-size: 30px;
             margin: 10px 0;
-            filter: drop-shadow(0 0 2px rgba(157, 123, 255, 0.2));
         }
         .temp-box {
             display: flex;
@@ -58,7 +57,7 @@
         }
         .temp-min {
             font-size: 14px;
-            color: var(--light-purple);
+            color: #c2adff;
         }
         /* 右下に出典を小さく固定表示 */
         .source {
@@ -66,10 +65,10 @@
             bottom: 8px;
             right: 12px;
             font-size: 10px;
-            opacity: 0.7;
+            opacity: 0.6;
             text-decoration: none;
-            color: var(--main-purple);
-            font-family: sans-serif; /* 出典部分は読みやすさ優先でゴシック */
+            color: #9D7BFF;
+            font-family: sans-serif; /* 出典は読みやすいゴシック体 */
         }
         .source:hover {
             opacity: 1;
@@ -78,50 +77,48 @@
 </head>
 <body>
 
-    <div class="widget-title">SHIMACHO WEATHER (JMA)</div>
+    <div class="widget-title">SHIMACHO WEATHER</div>
     
     <div class="container" id="weather-display">
         Loading...
     </div>
 
-    <a href="https://www.jma.go.jp/" target="_blank" class="source">※出典: 気象庁</a>
+    <a href="https://open-meteo.com/" target="_blank" class="source">※出典: JMA / Open-Meteo</a>
 
     <script>
-        async function getJMAWeather() {
+        async function getWeather() {
             try {
-                // 埼玉県（110000）のデータを取得
-                const res = await fetch('https://www.jma.go.jp/bosai/forecast/data/forecast/110000.json');
+                // 島町の緯度経度を指定し、気象庁(jma_seamless)の予測モデルを利用する安定したAPI
+                const url = 'https://api.open-meteo.com/v1/forecast?latitude=35.9461&longitude=139.6644&daily=weathercode,temperature_2m_max,temperature_2m_min&timezone=Asia%2FTokyo&models=jma_seamless';
+                
+                const res = await fetch(url);
                 const data = await res.json();
                 
-                // 週間予報のデータ（data[1]）を使うことで、最高/最低気温を安定して取得
-                const weekData = data[1].timeSeries;
-                const timeDefines = weekData[0].timeDefines;
-                const weatherCodes = weekData[0].areas[0].weatherCodes;
-                const tempsMin = weekData[1].areas[0].tempsMin;
-                const tempsMax = weekData[1].areas[0].tempsMax;
-
+                const daily = data.daily;
                 let html = '';
                 const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
                 
                 // 直近3日分を表示
                 for (let i = 0; i < 3; i++) {
-                    const date = new Date(timeDefines[i]);
-                    
-                    // 「今日」かどうかの判定
+                    const date = new Date(daily.time[i]);
                     const today = new Date();
+                    
                     const isToday = (date.getDate() === today.getDate() && date.getMonth() === today.getMonth());
                     const dayLabel = isToday ? 'Today' : dayNames[date.getDay()];
                     
-                    // 天気コードから絵文字への変換（簡易判定）
+                    // 天気コードから絵文字へ変換
                     let icon = "☁️"; 
-                    const code = parseInt(weatherCodes[i]);
-                    if (code < 200) icon = "☀️"; // 100番台は晴れ
-                    else if (code >= 300 && code < 400) icon = "☔"; // 300番台は雨
-                    else if (code >= 400) icon = "❄️"; // 400番台は雪
+                    const code = daily.weathercode[i];
+                    if (code === 0 || code === 1) icon = "☀️";
+                    else if (code === 2) icon = "⛅";
+                    else if (code === 3) icon = "☁️";
+                    else if (code >= 50 && code <= 69) icon = "☔";
+                    else if (code >= 70 && code <= 79) icon = "❄️";
+                    else if (code >= 80) icon = "⛈️";
 
-                    // 気温データの取得（時間帯によって発表がない場合は「-」を表示）
-                    const max = tempsMax[i] !== "" ? tempsMax[i] : "-";
-                    const min = tempsMin[i] !== "" ? tempsMin[i] : "-";
+                    // 温度（小数点四捨五入）
+                    const max = Math.round(daily.temperature_2m_max[i]);
+                    const min = Math.round(daily.temperature_2m_min[i]);
 
                     html += `
                         <div class="day-box">
@@ -141,7 +138,7 @@
             }
         }
 
-        getJMAWeather();
+        getWeather();
     </script>
 </body>
 </html>

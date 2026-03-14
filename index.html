@@ -9,34 +9,37 @@
             --main-purple: #9D7BFF; 
             --light-purple: #c2adff;
         }
+        /* 埋め込み枠全体を基準にするための設定 */
+        html, body {
+            height: 100%;
+            margin: 0;
+            overflow: hidden; /* 余計なスクロールバーを出さない */
+        }
         body {
             background: transparent;
             color: var(--main-purple);
             font-family: 'Playfair Display', "Times New Roman", "YuMincho", serif;
-            margin: 0;
-            padding: 20px;
-            
-            /* --- レスポンシブの起点を設定 --- */
+            /* レスポンシブの起点を「横の中央」「縦の中央」に設定 */
             display: flex;
-            align-items: center;       /* 縦の起点：中央 */
-            justify-content: flex-start; /* 横の起点：左 */
-            min-height: 100vh;         /* iframeの高さ全体を基準にするために必要 */
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
             box-sizing: border-box;
         }
         .widget-container {
             width: 100%;
-            max-width: 550px;
+            max-width: 550px; 
             display: flex;
             flex-direction: column;
-            /* 縦の余白を元のゆったりした状態に戻す */
-            gap: 20px; 
+            /* 縦の余白を元のゆったりサイズに戻しました */
+            gap: 20px;
             position: relative;
         }
         
         /* --- 上段（今日の天気） --- */
         .top-row {
             display: grid;
-            grid-template-columns: repeat(5, 1fr);
+            grid-template-columns: repeat(5, 1fr); 
             gap: 15px; 
             align-items: center;
         }
@@ -91,17 +94,17 @@
         .day-date {
             font-size: 12px;
             opacity: 0.8;
-            /* 余白を戻す */
-            margin-bottom: 4px; 
+            margin-bottom: 2px;
         }
         .day-label {
             font-size: 15px;
+            /* 縦の余白を戻しました */
             margin-bottom: 5px;
         }
         .daily-icon {
             font-size: 24px;
-            /* 余白を戻す */
-            margin: 10px 0; 
+            /* 縦の余白を戻しました */
+            margin: 10px 0;
         }
         .temp-max {
             font-size: 15px;
@@ -110,14 +113,15 @@
         .temp-min {
             font-size: 13px;
             color: var(--light-purple);
+            /* 縦の余白を戻しました */
             margin-top: 3px;
         }
 
         /* --- 出典明記 --- */
         .source-container {
             text-align: right; 
-            /* 余白を戻す */
-            margin-top: 10px; 
+            /* 縦の余白を戻しました */
+            margin-top: 15px; 
         }
         .source {
             font-size: 10px;

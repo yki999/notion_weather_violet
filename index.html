@@ -24,7 +24,7 @@
             display: flex;
             flex-direction: column;
             gap: 20px;
-            position: relative; /* 出典を枠内に収めるための基準 */
+            position: relative;
         }
         
         /* --- 上段（現在の天気） --- */
@@ -170,29 +170,6 @@
                 for (let i = 0; i < 5; i++) {
                     const date = new Date(daily.time[i]);
                     const dayLabel = dayNames[date.getDay()];
-                    const dailyWeather = parseWeatherCode(daily.weathercode[i]);
                     
-                    const max = Math.round(daily.temperature_2m_max[i]);
-                    const min = Math.round(daily.temperature_2m_min[i]);
-
-                    html += `
-                        <div class="day-box">
-                            <div class="day-label">${dayLabel}</div>
-                            <div class="daily-icon">${dailyWeather.icon}</div>
-                            <div class="temp-max">${max}°C</div>
-                            <div class="temp-min">${min}°C</div>
-                        </div>
-                    `;
-                }
-                document.getElementById('forecast-row').innerHTML = html;
-
-            } catch (error) {
-                console.error("API Error:", error);
-                document.getElementById('forecast-row').innerHTML = "データ取得エラー";
-            }
-        }
-
-        getWeather();
-    </script>
-</body>
-</html>
+                    // 【修正箇所】 daily.weather_code[i] に修正しました
+                    const dailyWeather = parseWeatherCode(daily.weather_code[i]);

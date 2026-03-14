@@ -216,4 +216,33 @@
                     const key = `${targetDate.getFullYear()}-${targetDate.getMonth()+1}-${targetDate.getDate()}`;
                     const dayData = jmaMap[key] || {};
                     
-                    const month = target
+                    const month = targetDate.getMonth() + 1;
+                    const day = targetDate.getDate();
+                    const dayLabel = dayNames[targetDate.getDay()];
+                    
+                    const dailyIcon = dayData.code ? getJMAIcon(dayData.code) : "☁️"; 
+                    const max = (dayData.max && dayData.max !== "") ? dayData.max : "--";
+                    const min = (dayData.min && dayData.min !== "") ? dayData.min : "--";
+
+                    html += `
+                        <div class="day-box">
+                            <div class="day-date">${month}/${day}</div>
+                            <div class="day-label">${dayLabel}</div>
+                            <div class="daily-icon">${dailyIcon}</div>
+                            <div class="temp-max">${max}°C</div>
+                            <div class="temp-min">${min}°C</div>
+                        </div>
+                    `;
+                }
+                document.getElementById('forecast-row').innerHTML = html;
+
+            } catch (error) {
+                console.error("JMA API Error:", error);
+                document.getElementById('forecast-row').innerHTML = `<div style="grid-column: span 5; font-size: 14px;">気象庁データの取得に失敗しました。</div>`;
+            }
+        }
+
+        getJMAWeather();
+    </script>
+</body>
+</html>

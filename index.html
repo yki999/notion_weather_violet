@@ -6,32 +6,70 @@
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&display=swap" rel="stylesheet">
     <style>
         :root {
-            var(--main-purple): #9D7BFF; 
-            var(--light-purple): #c2adff;
+            --main-purple: #9D7BFF; 
+            --light-purple: #c2adff;
         }
         body {
             background: transparent;
-            color: #9D7BFF;
-            /* 読み込んだGoogle Fontsを最優先に適用 */
-            font-family: 'Playfair Display', "Times New Roman", "YuMincho", "Hiragino Mincho ProN", serif;
-            text-align: center;
+            color: var(--main-purple);
+            font-family: 'Playfair Display', "Times New Roman", "YuMincho", serif;
             margin: 0;
             padding: 20px;
-            overflow: hidden;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-        }
-        .widget-title {
-            font-size: 14px;
-            letter-spacing: 2px;
-            margin-bottom: 25px;
-            text-transform: uppercase;
-        }
-        .container {
             display: flex;
             justify-content: center;
-            gap: 35px;
+        }
+        .widget-container {
+            width: 100%;
+            max-width: 600px; /* 参考画像のような横長のバランスに調整 */
+            display: flex;
+            flex-direction: column;
+            gap: 30px;
+        }
+        /* --- 上段（現在の天気） --- */
+        .top-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            align-items: center;
+        }
+        .title-block {
+            text-align: left;
+        }
+        .title-shimacho {
+            font-size: 16px;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        .title-weather {
+            font-size: 13px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            opacity: 0.7;
+        }
+        .current-icon {
+            text-align: center;
+            font-size: 32px;
+            filter: drop-shadow(0 0 2px rgba(157, 123, 255, 0.2));
+        }
+        .current-temp-block {
+            text-align: right;
+        }
+        .current-temp {
+            font-size: 26px;
+            font-weight: bold;
+        }
+        .current-desc {
+            font-size: 14px;
+            opacity: 0.9;
+            text-transform: lowercase;
+        }
+
+        /* --- 下段（5日間予報） --- */
+        .bottom-row {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 15px;
+            text-align: center;
         }
         .day-box {
             display: flex;
@@ -39,36 +77,32 @@
             align-items: center;
         }
         .day-label {
-            font-size: 18px;
+            font-size: 16px;
             margin-bottom: 5px;
         }
-        .icon {
-            font-size: 30px;
+        .daily-icon {
+            font-size: 24px;
             margin: 10px 0;
         }
-        .temp-box {
-            display: flex;
-            flex-direction: column;
-            gap: 4px;
-        }
         .temp-max {
-            font-size: 16px;
+            font-size: 15px;
             font-weight: bold;
         }
         .temp-min {
-            font-size: 14px;
-            color: #c2adff;
+            font-size: 13px;
+            color: var(--light-purple);
+            margin-top: 3px;
         }
-        /* 右下に出典を小さく固定表示 */
+
+        /* --- 出典明記（枠内に収める） --- */
         .source {
-            position: fixed;
-            bottom: 8px;
-            right: 12px;
+            text-align: right;
             font-size: 10px;
-            opacity: 0.6;
+            opacity: 0.5;
             text-decoration: none;
-            color: #9D7BFF;
-            font-family: sans-serif; /* 出典は読みやすいゴシック体 */
+            color: var(--main-purple);
+            font-family: sans-serif;
+            margin-top: 10px;
         }
         .source:hover {
             opacity: 1;
@@ -77,64 +111,80 @@
 </head>
 <body>
 
-    <div class="widget-title">SHIMACHO WEATHER</div>
-    
-    <div class="container" id="weather-display">
-        Loading...
+    <div class="widget-container">
+        <div class="top-row">
+            <div class="title-block">
+                <div class="title-shimacho">SHIMACHO</div>
+                <div class="title-weather">WEATHER</div>
+            </div>
+            <div class="current-icon" id="current-icon">--</div>
+            <div class="current-temp-block">
+                <div class="current-temp" id="current-temp">--°C</div>
+                <div class="current-desc" id="current-desc">--</div>
+            </div>
+        </div>
+
+        <div class="bottom-row" id="forecast-row">
+            Loading...
+        </div>
+
+        <a href="https://open-meteo.com/" target="_blank" class="source">※出典: JMA / Open-Meteo</a>
     </div>
 
-    <a href="https://open-meteo.com/" target="_blank" class="source">※出典: JMA / Open-Meteo</a>
-
     <script>
+        // 天気コードを絵文字と英語の説明に変換する関数
+        function parseWeatherCode(code) {
+            if (code === 0 || code === 1) return { icon: "☀️", desc: "Clear sky" };
+            if (code === 2) return { icon: "⛅", desc: "Partly cloudy" };
+            if (code === 3) return { icon: "☁️", desc: "Overcast" };
+            if (code >= 50 && code <= 69) return { icon: "☔", desc: "Rain" };
+            if (code >= 70 && code <= 79) return { icon: "❄️", desc: "Snow" };
+            if (code >= 80) return { icon: "⛈️", desc: "Showers" };
+            return { icon: "☁️", desc: "Cloudy" };
+        }
+
         async function getWeather() {
             try {
-                // 島町の緯度経度を指定し、気象庁(jma_seamless)の予測モデルを利用する安定したAPI
-                const url = 'https://api.open-meteo.com/v1/forecast?latitude=35.9461&longitude=139.6644&daily=weathercode,temperature_2m_max,temperature_2m_min&timezone=Asia%2FTokyo&models=jma_seamless';
-                
+                // 現在の天気と、日ごとの予報（5日分）を取得
+                const url = 'https://api.open-meteo.com/v1/forecast?latitude=35.9461&longitude=139.6644&current=temperature_2m,weather_code&daily=weather_code,temperature_2m_max,temperature_2m_min&timezone=Asia%2FTokyo&models=jma_seamless';
                 const res = await fetch(url);
                 const data = await res.json();
                 
+                // --- 現在の天気を反映 ---
+                const current = data.current;
+                const currentWeather = parseWeatherCode(current.weather_code);
+                document.getElementById('current-icon').textContent = currentWeather.icon;
+                document.getElementById('current-temp').textContent = Math.round(current.temperature_2m) + '°C';
+                document.getElementById('current-desc').textContent = currentWeather.desc;
+
+                // --- 5日間の予報を反映 ---
                 const daily = data.daily;
                 let html = '';
                 const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
                 
-                // 直近3日分を表示
-                for (let i = 0; i < 3; i++) {
+                // 5日分ループ
+                for (let i = 0; i < 5; i++) {
                     const date = new Date(daily.time[i]);
-                    const today = new Date();
+                    const dayLabel = dayNames[date.getDay()];
+                    const dailyWeather = parseWeatherCode(daily.weathercode[i]);
                     
-                    const isToday = (date.getDate() === today.getDate() && date.getMonth() === today.getMonth());
-                    const dayLabel = isToday ? 'Today' : dayNames[date.getDay()];
-                    
-                    // 天気コードから絵文字へ変換
-                    let icon = "☁️"; 
-                    const code = daily.weathercode[i];
-                    if (code === 0 || code === 1) icon = "☀️";
-                    else if (code === 2) icon = "⛅";
-                    else if (code === 3) icon = "☁️";
-                    else if (code >= 50 && code <= 69) icon = "☔";
-                    else if (code >= 70 && code <= 79) icon = "❄️";
-                    else if (code >= 80) icon = "⛈️";
-
-                    // 温度（小数点四捨五入）
                     const max = Math.round(daily.temperature_2m_max[i]);
                     const min = Math.round(daily.temperature_2m_min[i]);
 
                     html += `
                         <div class="day-box">
                             <div class="day-label">${dayLabel}</div>
-                            <div class="icon">${icon}</div>
-                            <div class="temp-box">
-                                <span class="temp-max">${max}°C</span>
-                                <span class="temp-min">${min}°C</span>
-                            </div>
+                            <div class="daily-icon">${dailyWeather.icon}</div>
+                            <div class="temp-max">${max}°C</div>
+                            <div class="temp-min">${min}°C</div>
                         </div>
                     `;
                 }
-                document.getElementById('weather-display').innerHTML = html;
+                document.getElementById('forecast-row').innerHTML = html;
+
             } catch (error) {
                 console.error("API Error:", error);
-                document.getElementById('weather-display').innerHTML = "データ取得エラー";
+                document.getElementById('forecast-row').innerHTML = "データ取得エラー";
             }
         }
 

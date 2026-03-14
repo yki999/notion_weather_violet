@@ -2,83 +2,121 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>島町ピンポイント天気</title>
+    <title>Shimacho Weather (JMA)</title>
     <style>
         :root {
-            --accent-color: #9D7BFF; /* カレンダーに合わせたパープル */
+            /* カレンダーの色調に合わせたパープル */
+            --main-purple: #9D7BFF;
+            --light-purple: #B19BFF;
         }
         body {
             background: transparent;
-            color: var(--accent-color);
-            font-family: "Helvetica Neue", Arial, "Hiragino Kaku Gothic ProN", sans-serif;
+            color: var(--main-purple);
+            /* セリフ体に設定 */
+            font-family: "Times New Roman", "YuMincho", "Hiragino Mincho ProN", "MS PMincho", serif;
             text-align: center;
+            margin: 0;
+            padding: 20px;
+            overflow: hidden;
         }
         .widget-title {
-            font-size: 12px;
-            letter-spacing: 2px;
-            margin-bottom: 15px;
-            opacity: 0.8;
+            font-size: 14px;
+            letter-spacing: 3px;
+            margin-bottom: 20px;
+            text-transform: uppercase;
         }
-        .weather-container {
+        .container {
             display: flex;
             justify-content: center;
-            gap: 25px;
+            gap: 30px;
         }
         .day-box {
-            width: 70px;
+            width: 80px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
         }
-        .day-label { font-size: 14px; margin-bottom: 5px; }
-        .weather-icon { font-size: 24px; margin: 10px 0; }
-        .temp { font-size: 16px; font-weight: bold; }
-        .precip { font-size: 11px; margin-top: 4px; }
+        .day-label {
+            font-size: 18px;
+            margin-bottom: 8px;
+        }
+        .icon {
+            font-size: 32px;
+            margin: 10px 0;
+            /* 絵文字を少しマイルドな色味にするフィルタ（任意） */
+            filter: drop-shadow(0 0 2px rgba(157, 123, 255, 0.3));
+        }
+        .temp {
+            font-size: 20px;
+            font-weight: bold;
+        }
+        .source {
+            position: fixed;
+            bottom: 5px;
+            right: 10px;
+            font-size: 9px;
+            opacity: 0.6;
+            text-decoration: none;
+            color: var(--main-purple);
+        }
     </style>
 </head>
 <body>
 
-    <div class="widget-title">SHIMACHO WEATHER (JMA)</div>
-    <div class="weather-container" id="weather-output">
-        読み込み中...
+    <div class="widget-title">SHIMACHO WEATHER</div>
+    
+    <div class="container" id="weather-display">
+        Loading...
     </div>
 
+    <a href="https://www.jma.go.jp/" target="_blank" class="source">Source: JMA</a>
+
     <script>
-        async function fetchJMA() {
+        async function getJMAWeather() {
             try {
-                // 埼玉県のエリアコード: 110000
-                const response = await fetch('https://www.jma.go.jp/bosai/forecast/data/forecast/110000.json');
-                const data = await response.json();
+                // 埼玉県（110000）の予報データを取得
+                const res = await fetch('https://www.jma.go.jp/bosai/forecast/data/forecast/110000.json');
+                const data = await res.json();
                 
-                // さいたま市（南部）の予報を抽出
-                const areaData = data[0].timeSeries[0];
-                const weatherArray = areaData.areas[0].weathers; // 天気文
-                const codeArray = areaData.areas[0].weatherCodes; // 天気アイコン用コード
+                // さいたま市を含む南部エリアのデータを抽出
+                const weatherData = data[0].timeSeries[0].areas[0];
+                const tempData = data[0].timeSeries[2].areas[0];
+                const codes = weatherData.weatherCodes;
+                const temps = tempData.temps;
 
                 let html = '';
-                // 直近3日分を表示
+                const days = ['Today', 'Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+                
                 for (let i = 0; i < 3; i++) {
                     const date = new Date();
                     date.setDate(date.getDate() + i);
-                    const dayName = i === 0 ? 'Today' : ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][date.getDay()];
+                    const dayLabel = i === 0 ? 'Today' : days[date.getDay()];
                     
-                    // 天気コードから簡易アイコン判定（ここはカスタマイズ可能）
+                    // 気象庁の天気コードを絵文字に変換（簡易版）
                     let icon = "☁️"; 
-                    if (codeArray[i] < 200) icon = "☀️";
-                    else if (codeArray[i] >= 300) icon = "☔";
+                    const code = parseInt(codes[i]);
+                    if (code < 200) icon = "☀️";
+                    else if (code >= 300) icon = "☔";
+                    else if (code >= 400) icon = "❄️";
+
+                    // 気温データの取得（今日・明日で配列の構造が異なる場合があるための処理）
+                    const temp = temps[i] ? `${temps[i]}°C` : "--°C";
 
                     html += `
                         <div class="day-box">
-                            <div class="day-label">${dayName}</div>
-                            <div class="weather-icon">${icon}</div>
-                            <div class="temp">--°C</div>
+                            <div class="day-label">${dayLabel}</div>
+                            <div class="icon">${icon}</div>
+                            <div class="temp">${temp}</div>
                         </div>
                     `;
                 }
-                document.getElementById('weather-output').innerHTML = html;
-            } catch (e) {
-                document.getElementById('weather-output').innerHTML = "取得エラー";
+                document.getElementById('weather-display').innerHTML = html;
+            } catch (error) {
+                document.getElementById('weather-display').innerHTML = "取得エラー";
             }
         }
-        fetchJMA();
+
+        getJMAWeather();
     </script>
 </body>
 </html>

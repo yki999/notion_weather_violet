@@ -14,56 +14,64 @@
             color: var(--main-purple);
             font-family: 'Playfair Display', "Times New Roman", "YuMincho", serif;
             margin: 0;
-            padding: 20px;
+            /* 縦の余白を少なめに（15px -> 10px） */
+            padding: 10px;
             display: flex;
             justify-content: center;
         }
         .widget-container {
             width: 100%;
-            max-width: 600px;
+            max-width: 550px; /* 全体のまとまりをよくするため少し調整 */
             display: flex;
             flex-direction: column;
-            gap: 20px;
+            /* 縦の余白を少なめに（20px -> 12px） */
+            gap: 12px;
             position: relative;
         }
         
-        /* --- 上段（現在の天気） --- */
+        /* --- 上段（今日の天気） --- */
         .top-row {
             display: grid;
-            grid-template-columns: 1fr 1fr 1fr;
+            grid-template-columns: repeat(5, 1fr); /* 下段と同じ5列グリッドで完全に連動 */
+            gap: 15px; /* 下段と横の隙間を合わせる */
             align-items: center;
-            margin-bottom: 10px;
         }
         .title-block {
-            text-align: left;
-            line-height: 1.4;
+            /* 1列目と2列目の上にまたがって配置（指示通りの「やや左」） */
+            grid-column: 1 / 3;
+            text-align: center;
+            line-height: 1.3;
         }
         .title-shimacho {
-            font-size: 16px;
+            font-size: 15px;
             font-weight: bold;
             text-transform: uppercase;
             letter-spacing: 1px;
         }
         .title-weather {
-            font-size: 13px;
+            font-size: 12px;
             text-transform: uppercase;
             letter-spacing: 1px;
-            opacity: 0.7;
+            opacity: 0.8;
         }
         .current-icon {
+            /* 3列目の真上 */
+            grid-column: 3 / 4;
             text-align: center;
             font-size: 32px;
         }
         .current-temp-block {
-            text-align: right;
+            /* 4列目と5列目の上にまたがって配置（指示通りの「やや右」） */
+            grid-column: 4 / 6;
+            text-align: center;
             line-height: 1.2;
         }
         .current-temp {
-            font-size: 26px;
+            font-size: 24px;
             font-weight: bold;
         }
         .current-desc {
-            font-size: 14px;
+            font-size: 13px;
             opacity: 0.9;
         }
 
@@ -79,13 +87,18 @@
             flex-direction: column;
             align-items: center;
         }
+        .day-date {
+            font-size: 12px;
+            opacity: 0.8;
+            margin-bottom: 2px;
+        }
         .day-label {
-            font-size: 16px;
-            margin-bottom: 5px;
+            font-size: 15px;
+            margin-bottom: 3px;
         }
         .daily-icon {
             font-size: 24px;
-            margin: 10px 0;
+            margin: 5px 0;
         }
         .temp-max {
             font-size: 15px;
@@ -94,13 +107,13 @@
         .temp-min {
             font-size: 13px;
             color: var(--light-purple);
-            margin-top: 3px;
+            margin-top: 2px;
         }
 
-        /* --- 出典明記（右下に配置） --- */
+        /* --- 出典明記 --- */
         .source-container {
-            text-align: right;
-            margin-top: 15px;
+            text-align: right; /* これで下段の右端とピタッと揃います */
+            margin-top: 2px; /* 縦の余白を極力減らす */
         }
         .source {
             font-size: 10px;
@@ -124,8 +137,8 @@
             </div>
             <div class="current-icon" id="current-icon">--</div>
             <div class="current-temp-block">
-                <div class="current-temp" id="current-temp">--°C</div>
-                <div class="current-desc" id="current-desc">--</div>
+                <div class="current-temp" id="current-temp">--° / --°</div>
+                <div class="current-desc" id="current-desc">Today</div>
             </div>
         </div>
 
@@ -134,42 +147,98 @@
         </div>
 
         <div class="source-container">
-            <a href="https://open-meteo.com/" target="_blank" class="source">※出典: JMA / Open-Meteo</a>
+            <a href="https://www.jma.go.jp/" target="_blank" class="source">※出典: 気象庁 (JMA)</a>
         </div>
     </div>
 
     <script>
-        function parseWeatherCode(code) {
-            if (code === 0 || code === 1) return { icon: "☀️", desc: "Clear sky" };
-            if (code === 2) return { icon: "⛅", desc: "Partly cloudy" };
-            if (code === 3) return { icon: "☁️", desc: "Overcast" };
-            if (code >= 50 && code <= 69) return { icon: "☔", desc: "Rain" };
-            if (code >= 70 && code <= 79) return { icon: "❄️", desc: "Snow" };
-            if (code >= 80) return { icon: "⛈️", desc: "Showers" };
-            return { icon: "☁️", desc: "Cloudy" };
+        function getJMAIcon(code) {
+            const c = parseInt(code);
+            if (c === 100 || c === 111 || c === 130 || c === 131) return "☀️";
+            if (c >= 101 && c <= 114) return "⛅";
+            if (c >= 200 && c <= 211) return "☁️";
+            if (c >= 212 && c <= 219) return "☁️☔";
+            if (c >= 300 && c <= 317) return "☔";
+            if (c >= 400 && c <= 427) return "❄️";
+            return "☁️";
         }
 
-        async function getWeather() {
+        async function getJMAWeather() {
             try {
-                const url = 'https://api.open-meteo.com/v1/forecast?latitude=35.9461&longitude=139.6644&current=temperature_2m,weather_code&daily=weather_code,temperature_2m_max,temperature_2m_min&timezone=Asia%2FTokyo&models=jma_seamless';
+                const url = 'https://www.jma.go.jp/bosai/forecast/data/forecast/110000.json';
                 const res = await fetch(url);
                 const data = await res.json();
                 
-                // 現在の天気
-                const current = data.current;
-                const currentWeather = parseWeatherCode(current.weather_code);
-                document.getElementById('current-icon').textContent = currentWeather.icon;
-                document.getElementById('current-temp').textContent = Math.round(current.temperature_2m) + '°C';
-                document.getElementById('current-desc').textContent = currentWeather.desc;
+                const jmaMap = {}; 
 
-                // 5日間の予報
-                const daily = data.daily;
+                const weekDates = data[1].timeSeries[0].timeDefines;
+                const weekCodes = data[1].timeSeries[0].areas[0].weatherCodes;
+                const weekMin = data[1].timeSeries[1].areas[0].tempsMin;
+                const weekMax = data[1].timeSeries[1].areas[0].tempsMax;
+
+                for(let i=0; i<weekDates.length; i++) {
+                    const d = new Date(weekDates[i]);
+                    const key = `${d.getFullYear()}-${d.getMonth()+1}-${d.getDate()}`;
+                    jmaMap[key] = { code: weekCodes[i], min: weekMin[i], max: weekMax[i] };
+                }
+
+                const dailyDates = data[0].timeSeries[0].timeDefines;
+                const dailyCodes = data[0].timeSeries[0].areas[0].weatherCodes;
+                for(let i=0; i<dailyDates.length; i++) {
+                    const d = new Date(dailyDates[i]);
+                    const key = `${d.getFullYear()}-${d.getMonth()+1}-${d.getDate()}`;
+                    if(!jmaMap[key]) jmaMap[key] = {};
+                    jmaMap[key].code = dailyCodes[i];
+                }
+
+                const today = new Date(); 
+                const todayKey = `${today.getFullYear()}-${today.getMonth()+1}-${today.getDate()}`;
+                const todayData = jmaMap[todayKey] || {};
+                
+                const todayIcon = todayData.code ? getJMAIcon(todayData.code) : "☁️";
+                const todayMax = (todayData.max && todayData.max !== "") ? todayData.max : "--";
+                const todayMin = (todayData.min && todayData.min !== "") ? todayData.min : "--";
+                
+                document.getElementById('current-icon').textContent = todayIcon;
+                document.getElementById('current-temp').textContent = `${todayMax}° / ${todayMin}°`;
+
                 let html = '';
                 const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
                 
-                for (let i = 0; i < 5; i++) {
-                    const date = new Date(daily.time[i]);
-                    const dayLabel = dayNames[date.getDay()];
+                for (let i = 1; i <= 5; i++) {
+                    const targetDate = new Date();
+                    targetDate.setDate(today.getDate() + i); 
                     
-                    // 【修正箇所】 daily.weather_code[i] に修正しました
-                    const dailyWeather = parseWeatherCode(daily.weather_code[i]);
+                    const key = `${targetDate.getFullYear()}-${targetDate.getMonth()+1}-${targetDate.getDate()}`;
+                    const dayData = jmaMap[key] || {};
+                    
+                    const month = targetDate.getMonth() + 1;
+                    const day = targetDate.getDate();
+                    const dayLabel = dayNames[targetDate.getDay()];
+                    
+                    const dailyIcon = dayData.code ? getJMAIcon(dayData.code) : "☁️"; 
+                    const max = (dayData.max && dayData.max !== "") ? dayData.max : "--";
+                    const min = (dayData.min && dayData.min !== "") ? dayData.min : "--";
+
+                    html += `
+                        <div class="day-box">
+                            <div class="day-date">${month}/${day}</div>
+                            <div class="day-label">${dayLabel}</div>
+                            <div class="daily-icon">${dailyIcon}</div>
+                            <div class="temp-max">${max}°C</div>
+                            <div class="temp-min">${min}°C</div>
+                        </div>
+                    `;
+                }
+                document.getElementById('forecast-row').innerHTML = html;
+
+            } catch (error) {
+                console.error("JMA API Error:", error);
+                document.getElementById('forecast-row').innerHTML = `<div style="grid-column: span 5; font-size: 14px;">気象庁データの取得に失敗しました。</div>`;
+            }
+        }
+
+        getJMAWeather();
+    </script>
+</body>
+</html>

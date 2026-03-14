@@ -5,114 +5,139 @@
     <title>Shimacho Weather (JMA)</title>
     <style>
         :root {
-            /* カレンダーの色調に合わせたパープル */
-            --main-purple: #9D7BFF;
-            --light-purple: #B19BFF;
+            /* カレンダーに馴染むパープル系のカラーコード */
+            --main-purple: #9D7BFF; 
+            --light-purple: #c2adff;
         }
         body {
             background: transparent;
             color: var(--main-purple);
-            /* セリフ体に設定 */
+            /* カレンダーと同じセリフ体（明朝系）を指定 */
             font-family: "Times New Roman", "YuMincho", "Hiragino Mincho ProN", "MS PMincho", serif;
             text-align: center;
             margin: 0;
             padding: 20px;
             overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
         }
         .widget-title {
             font-size: 14px;
-            letter-spacing: 3px;
-            margin-bottom: 20px;
+            letter-spacing: 2px;
+            margin-bottom: 25px;
             text-transform: uppercase;
         }
         .container {
             display: flex;
             justify-content: center;
-            gap: 30px;
+            gap: 35px;
         }
         .day-box {
-            width: 80px;
             display: flex;
             flex-direction: column;
             align-items: center;
         }
         .day-label {
             font-size: 18px;
-            margin-bottom: 8px;
+            margin-bottom: 5px;
         }
         .icon {
-            font-size: 32px;
+            font-size: 30px;
             margin: 10px 0;
-            /* 絵文字を少しマイルドな色味にするフィルタ（任意） */
-            filter: drop-shadow(0 0 2px rgba(157, 123, 255, 0.3));
+            filter: drop-shadow(0 0 2px rgba(157, 123, 255, 0.2));
         }
-        .temp {
-            font-size: 20px;
+        .temp-box {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+        .temp-max {
+            font-size: 16px;
             font-weight: bold;
         }
+        .temp-min {
+            font-size: 14px;
+            color: var(--light-purple);
+        }
+        /* 右下に出典を小さく固定表示 */
         .source {
             position: fixed;
-            bottom: 5px;
-            right: 10px;
-            font-size: 9px;
-            opacity: 0.6;
+            bottom: 8px;
+            right: 12px;
+            font-size: 10px;
+            opacity: 0.7;
             text-decoration: none;
             color: var(--main-purple);
+            font-family: sans-serif; /* 出典部分は読みやすさ優先でゴシック */
+        }
+        .source:hover {
+            opacity: 1;
         }
     </style>
 </head>
 <body>
 
-    <div class="widget-title">SHIMACHO WEATHER</div>
+    <div class="widget-title">SHIMACHO WEATHER (JMA)</div>
     
     <div class="container" id="weather-display">
         Loading...
     </div>
 
-    <a href="https://www.jma.go.jp/" target="_blank" class="source">Source: JMA</a>
+    <a href="https://www.jma.go.jp/" target="_blank" class="source">※出典: 気象庁</a>
 
     <script>
         async function getJMAWeather() {
             try {
-                // 埼玉県（110000）の予報データを取得
+                // 埼玉県（110000）のデータを取得
                 const res = await fetch('https://www.jma.go.jp/bosai/forecast/data/forecast/110000.json');
                 const data = await res.json();
                 
-                // さいたま市を含む南部エリアのデータを抽出
-                const weatherData = data[0].timeSeries[0].areas[0];
-                const tempData = data[0].timeSeries[2].areas[0];
-                const codes = weatherData.weatherCodes;
-                const temps = tempData.temps;
+                // 週間予報のデータ（data[1]）を使うことで、最高/最低気温を安定して取得
+                const weekData = data[1].timeSeries;
+                const timeDefines = weekData[0].timeDefines;
+                const weatherCodes = weekData[0].areas[0].weatherCodes;
+                const tempsMin = weekData[1].areas[0].tempsMin;
+                const tempsMax = weekData[1].areas[0].tempsMax;
 
                 let html = '';
-                const days = ['Today', 'Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+                const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
                 
+                // 直近3日分を表示
                 for (let i = 0; i < 3; i++) {
-                    const date = new Date();
-                    date.setDate(date.getDate() + i);
-                    const dayLabel = i === 0 ? 'Today' : days[date.getDay()];
+                    const date = new Date(timeDefines[i]);
                     
-                    // 気象庁の天気コードを絵文字に変換（簡易版）
+                    // 「今日」かどうかの判定
+                    const today = new Date();
+                    const isToday = (date.getDate() === today.getDate() && date.getMonth() === today.getMonth());
+                    const dayLabel = isToday ? 'Today' : dayNames[date.getDay()];
+                    
+                    // 天気コードから絵文字への変換（簡易判定）
                     let icon = "☁️"; 
-                    const code = parseInt(codes[i]);
-                    if (code < 200) icon = "☀️";
-                    else if (code >= 300) icon = "☔";
-                    else if (code >= 400) icon = "❄️";
+                    const code = parseInt(weatherCodes[i]);
+                    if (code < 200) icon = "☀️"; // 100番台は晴れ
+                    else if (code >= 300 && code < 400) icon = "☔"; // 300番台は雨
+                    else if (code >= 400) icon = "❄️"; // 400番台は雪
 
-                    // 気温データの取得（今日・明日で配列の構造が異なる場合があるための処理）
-                    const temp = temps[i] ? `${temps[i]}°C` : "--°C";
+                    // 気温データの取得（時間帯によって発表がない場合は「-」を表示）
+                    const max = tempsMax[i] !== "" ? tempsMax[i] : "-";
+                    const min = tempsMin[i] !== "" ? tempsMin[i] : "-";
 
                     html += `
                         <div class="day-box">
                             <div class="day-label">${dayLabel}</div>
                             <div class="icon">${icon}</div>
-                            <div class="temp">${temp}</div>
+                            <div class="temp-box">
+                                <span class="temp-max">${max}°C</span>
+                                <span class="temp-min">${min}°C</span>
+                            </div>
                         </div>
                     `;
                 }
                 document.getElementById('weather-display').innerHTML = html;
             } catch (error) {
-                document.getElementById('weather-display').innerHTML = "取得エラー";
+                console.error("API Error:", error);
+                document.getElementById('weather-display').innerHTML = "データ取得エラー";
             }
         }
 
